@@ -1,7 +1,7 @@
 import pytest
 import os
 import tempfile
-from src.processor import ContractProcessor
+from core.processor import ContractProcessor
 
 
 class TestContractProcessor:

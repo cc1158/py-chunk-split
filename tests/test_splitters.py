@@ -1,7 +1,7 @@
 import pytest
-from src.splitter.semantic_splitter import SemanticSplitter
-from src.splitter.length_splitter import LengthSplitter
-from src.parser.base import Section
+from core.splitter.semantic_splitter import SemanticSplitter
+from core.splitter.length_splitter import LengthSplitter
+from core.parser.base import Section
 
 
 class TestSemanticSplitter:

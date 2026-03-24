@@ -28,28 +28,28 @@ pip install -r requirements.txt
 ### 处理单个文件
 
 ```bash
-python main.py contract.pdf -o output.json
-python main.py contract.docx -o output.json
-python main.py contract.txt -o output.json
+python -m app.cli contract.pdf -o output.json
+python -m app.cli contract.docx -o output.json
+python -m app.cli contract.txt -o output.json
 ```
 
 ### 批量处理目录
 
 ```bash
-python main.py contracts/ -o output.json
+python -m app.cli contracts/ -o output.json
 ```
 
 ### 自定义切分参数
 
 ```bash
 # 设置最大token数（默认500）
-python main.py contract.pdf -o output.json --max-tokens 800
+python -m app.cli contract.pdf -o output.json --max-tokens 800
 
 # 设置重叠token数（默认50）
-python main.py contract.pdf -o output.json --overlap-tokens 100
+python -m app.cli contract.pdf -o output.json --overlap-tokens 100
 
 # 启用详细输出
-python main.py contract.pdf -o output.json -v
+python -m app.cli contract.pdf -o output.json -v
 ```
 
 ## 输出格式
@@ -107,7 +107,7 @@ python main.py contract.pdf -o output.json -v
 
 ```
 py-chunk-split/
-├── src/
+├── core/                    # 核心库
 │   ├── __init__.py
 │   ├── parser/              # 文档解析模块
 │   │   ├── __init__.py
@@ -124,9 +124,22 @@ py-chunk-split/
 │   │   ├── __init__.py
 │   │   └── chunk.py        # Chunk数据模型
 │   └── processor.py         # 主处理器
+├── app/                     # 应用层
+│   ├── __init__.py
+│   ├── api/                # API 服务
+│   │   ├── __init__.py
+│   │   ├── main.py         # FastAPI 应用入口
+│   │   ├── schemas.py      # API 响应模型
+│   │   ├── router.py       # 路由定义
+│   │   └── service.py      # 业务逻辑
+│   └── cli.py              # CLI 入口
+├── docs/                    # API 文档
+│   ├── README.md           # API 使用指南
+│   ├── openapi.json        # OpenAPI 规范 (JSON)
+│   ├── openapi.yaml        # OpenAPI 规范 (YAML)
+│   ├── index.md            # 文档目录
+│   └── test_doc/           # 测试文档
 ├── tests/                   # 单元测试
-├── test_doc/               # 测试文档
-├── main.py                 # 命令行入口
 └── requirements.txt        # 依赖列表
 ```
 
@@ -188,25 +201,25 @@ Appendix X    # 英文附件
 ### 处理 PDF 合同
 
 ```bash
-python main.py contract.pdf -o output.json --max-tokens 500 -v
+python -m app.cli contract.pdf -o output.json --max-tokens 500 -v
 ```
 
 ### 处理 DOCX 合同
 
 ```bash
-python main.py "海南省装配式建设项目工程总承包合同.docx" -o output.json -v
+python -m app.cli "海南省装配式建设项目工程总承包合同.docx" -o output.json -v
 ```
 
 ### 批量处理
 
 ```bash
-python main.py test_doc/ -o all_contracts.json
+python -m app.cli docs/test_doc/ -o all_contracts.json
 ```
 
 ### Python API
 
 ```python
-from src.processor import ContractProcessor
+from core.processor import ContractProcessor
 
 processor = ContractProcessor(max_tokens=500, overlap_tokens=50)
 chunks = processor.process('contract.pdf')
@@ -216,4 +229,104 @@ for chunk in chunks:
     print(f"Type: {chunk.metadata.get('type')}")
     print(f"Content: {chunk.content[:100]}...")
     print()
+```
+
+## API 服务
+
+### 启动服务
+
+```bash
+uvicorn app.api.main:app --reload --port 8000
+```
+
+### 访问 API 文档
+
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
+- 本地文档: [docs/](docs/) 目录下包含完整的 API 文档
+
+### 接口列表
+
+#### POST /api/v1/chunk
+
+上传合同文件并获取切分结果。
+
+**请求参数（multipart/form-data）：**
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| file | UploadFile | **是** | - | 合同文件（PDF/DOCX/TXT） |
+| request_id | string | **是** | - | 请求唯一标识 |
+| max_tokens | int | 否 | 500 | 每个chunk最大token数 |
+| overlap_tokens | int | 否 | 50 | 相邻chunk重叠token数 |
+| min_tokens | int | 否 | 100 | 最小token数 |
+
+**请求示例：**
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/chunk" \
+  -F "file=@contract.pdf" \
+  -F "request_id=req_20260324_001" \
+  -F "max_tokens=500"
+```
+
+**返回示例：**
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "request_id": "req_20260324_001",
+    "file_name": "contract.pdf",
+    "total_chunks": 10,
+    "chunks": [
+      {
+        "request_id": "req_20260324_001",
+        "chunk_index": 0,
+        "content": "第一条 发包人向承包人提供...",
+        "metadata": {
+          "title": "第一条",
+          "type": "clause",
+          "level": 2,
+          "page_number": 1,
+          "file_name": "contract.pdf"
+        },
+        "token_count": 350,
+        "previous_chunk_index": null,
+        "next_chunk_index": 1
+      }
+    ]
+  }
+}
+```
+
+#### GET /api/v1/health
+
+健康检查接口。
+
+**返回：**
+```json
+{
+  "status": "healthy",
+  "version": "1.0.0"
+}
+```
+
+#### GET /api/v1/info
+
+获取服务信息。
+
+**返回：**
+```json
+{
+  "name": "法律合同RAG切分工具",
+  "version": "1.0.0",
+  "supported_formats": [".pdf", ".docx", ".doc", ".txt", ".text"],
+  "parameters": {
+    "max_tokens": {"default": 500, "description": "每个chunk最大token数"},
+    "overlap_tokens": {"default": 50, "description": "相邻chunk重叠token数"},
+    "min_tokens": {"default": 100, "description": "最小token数"}
+  }
+}
 ```

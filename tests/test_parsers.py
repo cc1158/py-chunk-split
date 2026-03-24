@@ -1,8 +1,8 @@
 import pytest
 import os
 import tempfile
-from src.parser.txt_parser import TXTParser
-from src.parser.base import Section
+from core.parser.txt_parser import TXTParser
+from core.parser.base import Section
 
 
 class TestTXTParser:

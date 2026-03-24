@@ -11,7 +11,7 @@ import json
 import os
 import sys
 
-from src.processor import ContractProcessor
+from core.processor import ContractProcessor
 
 
 def main():
@@ -21,16 +21,16 @@ def main():
         epilog="""
 Examples:
   # Process a single PDF file
-  python main.py contract.pdf -o output.json
+  python -m app.cli contract.pdf -o output.json
 
   # Process a DOCX file with custom chunk size
-  python main.py contract.docx -o output.json --max-tokens 800
+  python -m app.cli contract.docx -o output.json --max-tokens 800
 
   # Process all files in a directory
-  python main.py contracts/ -o output.json
+  python -m app.cli contracts/ -o output.json
 
   # Process with verbose output
-  python main.py contract.pdf -o output.json -v
+  python -m app.cli contract.pdf -o output.json -v
         """
     )
 
